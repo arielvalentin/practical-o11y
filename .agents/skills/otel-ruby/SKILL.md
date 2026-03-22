@@ -236,11 +236,13 @@ end
 ```ruby
 MyApp::TRACER.in_span("process-order", attributes: { "order.id" => order.id }) do |span|
   # Business logic here
-  span.set_attribute("order.total", order.total.to_f)
-  span.set_attribute("order.item_count", order.items.count)
-
   result = process(order)
-  span.set_attribute("order.status", result.status)
+
+  span.add_attributes(
+    "order.total" => order.total.to_f,
+    "order.item_count" => order.items.count,
+    "order.status" => result.status
+  )
 end
 ```
 
@@ -280,8 +282,7 @@ The `in_span` helper automatically calls `record_exception` and sets `status = e
 
 ```ruby
 # Preferred — in_span handles exception recording and status automatically
-MyApp::TRACER.in_span("risky-operation") do |span|
-  span.set_attribute("order.id", order.id)
+MyApp::TRACER.in_span("risky-operation", attributes: { "order.id" => order.id }) do |span|
   perform_risky_work
 end
 ```
@@ -310,11 +311,26 @@ span.status = OpenTelemetry::Trace::Status.error("Payment gateway timeout")
 
 ### Nested Spans
 
+Prefer enriching the current span over creating child spans. Use `OpenTelemetry::Trace.current_span` to add context to the active span:
+
 ```ruby
-MyApp::TRACER.in_span("parent-operation") do |parent_span|
-  # Automatically becomes a child span
-  MyApp::TRACER.in_span("child-operation") do |child_span|
-    child_span.set_attribute("step", "validation")
+def create_order(params)
+  span = OpenTelemetry::Trace.current_span
+  span.add_attributes(
+    "order.item_count" => params[:items].size,
+    "order.source" => params[:source]
+  )
+
+  process(params)
+end
+```
+
+Only create child spans for distinct units of work (e.g., a loop iteration, a parallel task, or a clearly separate operation):
+
+```ruby
+order.items.each do |item|
+  MyApp::TRACER.in_span("order.process_item", attributes: { "item.id" => item.id }) do |span|
+    fulfill(item)
   end
 end
 ```
@@ -403,23 +419,24 @@ The `opentelemetry-instrumentation-faraday` gem automatically instruments all Fa
 
 ### Adding Custom Attributes
 
+Since Faraday instrumentation already creates a client span, enrich the current span rather than creating a child:
+
 ```ruby
 class ShippingClient
-  TRACER = OpenTelemetry.tracer_provider.tracer("shipping-client")
-
   def calculate_rates(origin:, destination:, package:)
-    TRACER.in_span("shipping.calculate_rates", kind: :client) do |span|
-      span.set_attribute("shipping.origin", origin[:zip])
-      span.set_attribute("shipping.destination", destination[:zip])
-      span.set_attribute("shipping.weight", package[:weight])
+    span = OpenTelemetry::Trace.current_span
+    span.add_attributes(
+      "shipping.origin" => origin[:zip],
+      "shipping.destination" => destination[:zip],
+      "shipping.weight" => package[:weight]
+    )
 
-      response = @connection.post("/api/v1/rates") do |req|
-        req.body = { origin:, destination:, package: }
-      end
-
-      span.set_attribute("shipping.rates_count", response.body["rates"]&.size || 0)
-      response.body
+    response = @connection.post("/api/v1/rates") do |req|
+      req.body = { origin:, destination:, package: }
     end
+
+    span.add_attributes("shipping.rates_count" => response.body["rates"]&.size || 0)
+    response.body
   end
 end
 ```
@@ -433,14 +450,18 @@ Auto-instrumentation creates spans for controller actions automatically. Add bus
 ```ruby
 class OrdersController < ApplicationController
   def create
-    current_span = OpenTelemetry::Trace.current_span
-    current_span.set_attribute("user.id", current_user.id)
-    current_span.set_attribute("order.item_count", order_params[:items].size)
+    span = OpenTelemetry::Trace.current_span
+    span.add_attributes(
+      "app.user.id" => current_user.id,
+      "app.order.item_count" => order_params[:items].size
+    )
 
     @order = OrderService.new.create(order_params)
 
-    current_span.set_attribute("order.id", @order.id)
-    current_span.set_attribute("order.total", @order.total.to_f)
+    span.add_attributes(
+      "app.order.id" => @order.id,
+      "app.order.total" => @order.total.to_f
+    )
   end
 end
 ```
@@ -467,10 +488,8 @@ class OrderNotificationSubscriber
     ) do |span|
       NotificationClient.new.order_placed(order)
     rescue NotificationClient::NotificationError => e
-      # Best-effort — log and swallow so the order flow isn't interrupted
       span.record_exception(e)
       span.status = OpenTelemetry::Trace::Status.error(e.message)
-      Rails.logger.warn("[OrderNotificationSubscriber] #{e.message}")
     end
   end
 end
@@ -493,12 +512,12 @@ class ProcessPaymentService
     ) do |span|
       result = gateway.charge(order.total, payment_method)
 
-      span.set_attribute("payment.transaction_id", result.transaction_id)
-      span.set_attribute("payment.status", result.status)
+      span.add_attributes(
+        "payment.transaction_id" => result.transaction_id,
+        "payment.status" => result.status
+      )
 
-      if result.success?
-        span.status = OpenTelemetry::Trace::Status.ok
-      else
+      unless result.success?
         span.status = OpenTelemetry::Trace::Status.error(result.error_message)
       end
 
@@ -547,9 +566,11 @@ Use standard OpenTelemetry semantic conventions for attribute names to ensure co
 Prefix custom attributes with your domain to avoid collisions:
 
 ```ruby
-span.set_attribute("app.user.id", user.id)
-span.set_attribute("app.order.total", order.total.to_f)
-span.set_attribute("app.feature_flag.variant", variant_name)
+span.add_attributes(
+  "app.user.id" => user.id,
+  "app.order.total" => order.total.to_f,
+  "app.feature_flag.variant" => variant_name
+)
 ```
 
 ---
@@ -658,26 +679,21 @@ end
 
 ### Trace-Correlated Logging
 
-Add trace context to Rails logs so log lines can be correlated with traces in your observability backend:
+Add trace context to Rails logs so log lines can be correlated with traces in your observability backend. Use tagged logging to avoid string interpolation:
 
 ```ruby
 # config/initializers/opentelemetry.rb (add after SDK configuration)
 
-# Extend the Rails logger formatter to include trace context
-module OtelLogFormatter
-  def call(severity, timestamp, progname, msg)
+# Use Rails tagged logging to append trace context
+Rails.application.config.log_tags = [
+  :request_id,
+  lambda { |_request|
     span_context = OpenTelemetry::Trace.current_span.context
     if span_context.valid?
-      trace_id = span_context.hex_trace_id
-      span_id = span_context.hex_span_id
-      "[#{severity}] [trace_id=#{trace_id} span_id=#{span_id}] #{msg}\n"
-    else
-      "[#{severity}] #{msg}\n"
+      "trace_id=#{span_context.hex_trace_id} span_id=#{span_context.hex_span_id}"
     end
-  end
-end
-
-Rails.logger.formatter.extend(OtelLogFormatter) if Rails.logger.formatter
+  }
+]
 ```
 
 ### Structured Logging with Lograge

@@ -20,6 +20,9 @@ applyTo: '**/*.rb'
 
 ## Attributes
 
+- Use `add_attributes` (hash) instead of multiple `set_attribute` calls — it is more efficient and readable
+- Only use `set_attribute` when setting a single attribute in isolation (e.g., after a conditional branch)
+- Pass known attributes directly to `in_span` via the `attributes:` keyword when possible
 - Use semantic convention attribute names when they exist
 - Prefix custom attributes with a namespace: `app.`, `biz.`, or your domain
 - Keep attribute values low-cardinality when possible
@@ -34,11 +37,16 @@ applyTo: '**/*.rb'
 
 ```ruby
 # Preferred — in_span records the exception and sets error status automatically
-tracer.in_span("process-order") do |span|
-  span.set_attribute("order.id", order.id)
+tracer.in_span("process-order", attributes: { "app.order.id" => order.id }) do |span|
   perform_work
 end
 ```
+
+## Spans
+
+- Prefer enriching the current span (`OpenTelemetry::Trace.current_span`) over creating child spans
+- Only create child spans for distinct units of work (loop iterations, parallel tasks, clearly separate operations)
+- When library instrumentation already creates a span (e.g., Faraday HTTP client span), enrich it with `add_attributes` instead of wrapping it in another `in_span`
 
 ## Performance
 
@@ -90,3 +98,4 @@ end
 - Correlate logs with traces by including `trace_id` and `span_id` in log output
 - Use structured logging (JSON) with Lograge or similar for machine-parseable log lines
 - Never log full span or trace objects — log only the hex IDs
+- Do not use `Rails.logger` with string interpolation — use structured logging or span events instead
