@@ -26,6 +26,7 @@ services:
       SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
       RAILS_SERVE_STATIC_FILES: "1"
       RAILS_LOG_TO_STDOUT: "1"
+      SPREE_URL_PROTOCOL: http
       DATABASE_HOST: postgres
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres

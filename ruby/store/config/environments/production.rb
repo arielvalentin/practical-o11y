@@ -90,4 +90,11 @@ Rails.application.configure do
 
   # Allow all hosts for local Docker development
   config.hosts.clear
+
+  # Use HTTP for local development in production mode
+  Rails.application.routes.default_url_options = {
+    protocol: "http",
+    host: ENV.fetch("HOST", "localhost"),
+    port: ENV.fetch("PORT", 3000)
+  }
 end
