@@ -72,6 +72,9 @@ gem "spree_admin", ">= 5.3.0.rc1"
 gem "spree_storefront"
 gem "spree_i18n"
 
+# Tailwind CSS for Spree storefront
+gem "tailwindcss-rails"
+
 # HTTP client for inter-service communication
 gem "faraday"
 

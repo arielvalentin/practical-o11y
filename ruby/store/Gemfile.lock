@@ -876,6 +876,7 @@ DEPENDENCIES
   spree_sample (>= 5.3.0.rc1)
   spree_storefront
   stimulus-rails
+  tailwindcss-rails
   thruster
   turbo-rails
   tzinfo-data
