@@ -1,0 +1,4 @@
+admin_css: bin/rails spree:admin:tailwindcss:watch
+
+storefront_css: bin/rails tailwindcss:watch
+web: bin/rails s -p 3000
