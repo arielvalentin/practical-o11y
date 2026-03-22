@@ -98,7 +98,13 @@ export function browseStore() {
   sleep(0.5 + Math.random());
 
   group("Category Browse", () => {
-    const categories = ["canvas-prints", "fine-art-prints", "photo-prints", "wall-art", "miniatures"];
+    const categories = [
+      "categories/canvas-prints",
+      "categories/fine-art-prints",
+      "categories/photo-prints",
+      "categories/wall-art",
+      "categories/miniatures",
+    ];
     const res = http.get(`${BASE_URL}/t/${pick(categories)}`);
     storefrontDuration.add(res.timings.duration);
     check(res, { "category page loads": (r) => r.status === 200 || r.status === 302 });
@@ -115,10 +121,24 @@ export function hitApis() {
     // Shipping rates
     group("Shipping API", () => {
       const payload = JSON.stringify({
-        origin_zip: "10001",
-        destination_zip: pick(["90001", "60601", "77001", "98101", "30301"]),
-        weight_oz: Math.floor(Math.random() * 48) + 4,
-        items: Math.floor(Math.random() * 5) + 1,
+        origin: {
+          zip: "10001",
+          city: "New York",
+          state: "NY",
+          country: "US",
+        },
+        destination: {
+          zip: pick(["90001", "60601", "77001", "98101", "30301"]),
+          city: "Los Angeles",
+          state: "CA",
+          country: "US",
+        },
+        package: {
+          weight: Math.floor(Math.random() * 48) + 4,
+          length: 12,
+          width: 12,
+          height: 2,
+        },
       });
       const res = http.post(`${SHIPPING_URL}/api/v1/rates`, payload, {
         headers: { "Content-Type": "application/json" },
@@ -141,11 +161,10 @@ export function hitApis() {
     group("Notifications API - Send", () => {
       const payload = JSON.stringify({
         notification: {
-          notification_type: pick(["order_confirmation", "shipping_update", "delivery_confirmation"]),
+          type: pick(["order_confirmation", "shipping_update", "delivery_confirmation"]),
           recipient: `user${Math.floor(Math.random() * 100)}@example.com`,
           subject: "Load test notification",
-          body: "This is a load test notification.",
-          metadata: { order_number: `R${Math.floor(Math.random() * 999999999)}` },
+          payload: { order_number: `R${Math.floor(Math.random() * 999999999)}` },
         },
       });
       const res = http.post(`${NOTIFICATIONS_URL}/api/v1/notifications`, payload, {
@@ -153,7 +172,7 @@ export function hitApis() {
       });
       apiDuration.add(res.timings.duration);
       check(res, {
-        "notification created": (r) => r.status === 200 || r.status === 201,
+        "notification created": (r) => r.status >= 200 && r.status < 300,
       });
     });
   } else {
