@@ -353,7 +353,7 @@ end
 # ---------------------------------------------------------------------------
 # Product Images (placeholder images from picsum.photos)
 # ---------------------------------------------------------------------------
-puts "\nAttaching placeholder product images..."
+puts "\nAttaching product images from loremflickr..."
 
 require "open-uri"
 
@@ -363,18 +363,26 @@ total = products_needing_images.count
 puts "  #{total} products need images"
 
 products_needing_images.each_with_index do |product, idx|
-  seed_id = Digest::MD5.hexdigest(product.name)[0..7]
-  url = "https://picsum.photos/seed/#{seed_id}/600/600"
+  # Build a search query from product name, adding "clothing" for better results
+  query = product.name.downcase.gsub(/[^a-z0-9\s]/, "").split.join("+")
+  # Use lock= param with product id for cache-busting (loremflickr caches per-URL)
+  url = "https://loremflickr.com/600/600/#{query},clothing?lock=#{product.id}"
 
+  retries = 0
   begin
-    file = URI.open(url, open_timeout: 10, read_timeout: 10)
+    file = URI.open(url, open_timeout: 15, read_timeout: 15)
     img = Spree::Image.new(viewable: product.master, alt: product.name, position: 1)
     img.attachment.attach(io: file, filename: "product_#{product.id}.jpg", content_type: "image/jpeg")
     img.save!
     print "\r  Attached #{idx + 1}/#{total}: #{product.name[0..40]}" + " " * 20
   rescue => e
+    retries += 1
+    sleep 1
+    retry if retries < 2
     print "\r  Failed #{idx + 1}/#{total}: #{product.name[0..30]} (#{e.message[0..40]})" + " " * 10
   end
+
+  sleep 0.3 # rate-limit to be polite to loremflickr
 end
 puts "\n  Done attaching images!"
 
