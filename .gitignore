@@ -13,3 +13,7 @@
 .env
 .env.local
 .env.*.local
+
+# Rails
+log/
+tmp/
