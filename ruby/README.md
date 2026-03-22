@@ -129,6 +129,20 @@ curl -X POST http://localhost:3003/api/v1/notifications \
 curl "http://localhost:3003/api/v1/notifications?limit=10"
 ```
 
+## Load Testing
+
+Install [k6](https://k6.io/) (`brew install k6`), then:
+
+```bash
+K6_WEB_DASHBOARD=true k6 run ruby/k6/load-test.js
+```
+
+Open **http://localhost:5665** to view real-time results in your browser.
+
+The test runs two scenarios for 2 minutes:
+- **browse** — Simulates users browsing the storefront (1→10 VUs)
+- **api_calls** — Hits microservice APIs at 10 req/s (shipping, recommendations, notifications)
+
 ## Project Structure
 
 ```
