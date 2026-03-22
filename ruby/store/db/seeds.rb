@@ -303,7 +303,7 @@ admin = Spree::AdminUser.first
     expires_at: 6.months.from_now }
 ].each do |gc_data|
   user = gc_data[:user_email] ? Spree::User.find_by(email: gc_data[:user_email]) : nil
-  gc = Spree::GiftCard.find_or_create_by!(code: gc_data[:code]) do |gift_card|
+  gc = Spree::GiftCard.find_or_create_by!(code: gc_data[:code].downcase) do |gift_card|
     gift_card.amount = gc_data[:amount]
     gift_card.currency = "USD"
     gift_card.store = store
