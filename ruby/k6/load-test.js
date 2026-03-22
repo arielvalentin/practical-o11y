@@ -1,6 +1,7 @@
 import http from "k6/http";
 import { check, sleep, group } from "k6";
 import { Rate, Trend } from "k6/metrics";
+import { browser } from "k6/browser";
 
 // Custom metrics
 const errorRate = new Rate("errors");
@@ -67,6 +68,20 @@ export const options = {
       duration: "2m",
       preAllocatedVUs: 5,
       exec: "hitApisViaStore",
+    },
+    // Real browser users browsing the storefront
+    browser_users: {
+      executor: "ramping-vus",
+      startVUs: 0,
+      stages: [
+        { duration: "30s", target: 2 },
+        { duration: "1m", target: 3 },
+        { duration: "30s", target: 0 },
+      ],
+      exec: "browserJourney",
+      options: {
+        browser: { type: "chromium" },
+      },
     },
   },
   thresholds: {
@@ -263,6 +278,74 @@ export function hitApisViaStore() {
         "store→notification created": (r) => r.status >= 200 && r.status < 300,
       });
     });
+  }
+}
+
+// --- Scenario: Real browser user journey -------------------------------------
+export async function browserJourney() {
+  const page = await browser.newPage();
+
+  try {
+    // 1. Visit homepage
+    await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle" });
+    check(await page.title(), {
+      "browser: homepage loaded": (t) => t.length > 0,
+    });
+
+    await page.waitForTimeout(1000 + Math.random() * 2000);
+
+    // 2. Click "Shop All" nav link to browse products
+    const shopLink = page.locator('a[data-title="shop all"]').first();
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "networkidle" }),
+      shopLink.click(),
+    ]);
+    check(page.url(), {
+      "browser: navigated to products": (u) => u.includes("/products"),
+    });
+
+    await page.waitForTimeout(1000 + Math.random() * 2000);
+
+    // 3. Click on a product from the listing
+    const productLink = page.locator('a[href*="/products/"]').first();
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "networkidle" }),
+      productLink.click(),
+    ]);
+    check(page.url(), {
+      "browser: on product page": (u) => u.includes("/products/"),
+    });
+
+    await page.waitForTimeout(1000 + Math.random() * 1000);
+
+    // 4. Try adding to cart if an "Add to Cart" button exists
+    const addToCart = page.locator('button:has-text("Add to Cart"), input[value="Add to Cart"]').first();
+    try {
+      await addToCart.waitFor({ state: "visible", timeout: 3000 });
+      await addToCart.click();
+      await page.waitForTimeout(2000);
+      check(true, { "browser: add to cart clicked": () => true });
+    } catch {
+      // Button may not exist or product may need variant selection — that's ok
+    }
+
+    await page.waitForTimeout(1000 + Math.random() * 1000);
+
+    // 5. Browse a category page
+    await page.goto(`${BASE_URL}/t/categories/canvas-prints`, { waitUntil: "networkidle" });
+    check(page.url(), {
+      "browser: category page loaded": (u) => u.includes("/t/categories/"),
+    });
+
+    await page.waitForTimeout(1000 + Math.random() * 2000);
+
+    // 6. Navigate back to homepage
+    await page.goto(`${BASE_URL}/`, { waitUntil: "networkidle" });
+    check(await page.title(), {
+      "browser: returned to homepage": (t) => t.length > 0,
+    });
+  } finally {
+    await page.close();
   }
 }
 
