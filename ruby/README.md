@@ -134,14 +134,24 @@ curl "http://localhost:3003/api/v1/notifications?limit=10"
 Install [k6](https://k6.io/) (`brew install k6`), then:
 
 ```bash
+# Run with live dashboard (http://localhost:5665)
 K6_WEB_DASHBOARD=true k6 run ruby/k6/load-test.js
+
+# Export a standalone HTML report you can open anytime
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=k6-report.html k6 run ruby/k6/load-test.js
+
+# Keep the live dashboard open after the test finishes (Ctrl+C to stop)
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_OPEN=true k6 run --pause-after ruby/k6/load-test.js
 ```
 
-Open **http://localhost:5665** to view real-time results in your browser.
+The test runs four scenarios in parallel for 2 minutes:
 
-The test runs two scenarios for 2 minutes:
-- **browse** — Simulates users browsing the storefront (1→10 VUs)
-- **api_calls** — Hits microservice APIs at 10 req/s (shipping, recommendations, notifications)
+| Scenario | Type | Description |
+|---|---|---|
+| `browse` | HTTP | Simulates users browsing the storefront (1→10 VUs) |
+| `api_calls` | HTTP | Hits microservice APIs directly at 10 req/s |
+| `store_api_calls` | HTTP | Hits microservices via store proxy at 5 req/s |
+| `browser_users` | Chromium | Real browser user journeys (1→3 VUs) |
 
 ## Project Structure
 

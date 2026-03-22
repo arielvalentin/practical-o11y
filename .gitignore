@@ -17,3 +17,4 @@
 # Rails
 log/
 tmp/
+k6-report.html
