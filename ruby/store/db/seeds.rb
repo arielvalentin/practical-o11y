@@ -350,4 +350,32 @@ category = Spree::StoreCreditCategory.find_or_create_by!(name: "Default")
   puts "  Created store credit: $#{sc_data[:amount]} for #{sc_data[:user_email]}"
 end
 
+# ---------------------------------------------------------------------------
+# Product Images (placeholder images from picsum.photos)
+# ---------------------------------------------------------------------------
+puts "\nAttaching placeholder product images..."
+
+require "open-uri"
+
+products_needing_images = Spree::Product.where(deleted_at: nil).select { |p| p.master.images.empty? }
+
+total = products_needing_images.count
+puts "  #{total} products need images"
+
+products_needing_images.each_with_index do |product, idx|
+  seed_id = Digest::MD5.hexdigest(product.name)[0..7]
+  url = "https://picsum.photos/seed/#{seed_id}/600/600"
+
+  begin
+    file = URI.open(url, open_timeout: 10, read_timeout: 10)
+    img = Spree::Image.new(viewable: product.master, alt: product.name, position: 1)
+    img.attachment.attach(io: file, filename: "product_#{product.id}.jpg", content_type: "image/jpeg")
+    img.save!
+    print "\r  Attached #{idx + 1}/#{total}: #{product.name[0..40]}" + " " * 20
+  rescue => e
+    print "\r  Failed #{idx + 1}/#{total}: #{product.name[0..30]} (#{e.message[0..40]})" + " " * 10
+  end
+end
+puts "\n  Done attaching images!"
+
 puts "\nDone creating additional demo data!"
