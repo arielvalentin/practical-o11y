@@ -6,6 +6,7 @@ import { Rate, Trend } from "k6/metrics";
 const errorRate = new Rate("errors");
 const storefrontDuration = new Trend("storefront_duration", true);
 const apiDuration = new Trend("api_duration", true);
+const proxyDuration = new Trend("proxy_duration", true);
 
 // --- Configuration -----------------------------------------------------------
 const BASE_URL = __ENV.BASE_URL || "http://localhost:3000";
@@ -49,7 +50,7 @@ export const options = {
       ],
       exec: "browseStore",
     },
-    // API consumers hitting microservices
+    // API consumers hitting microservices directly
     api_calls: {
       executor: "constant-arrival-rate",
       rate: 10,
@@ -57,6 +58,15 @@ export const options = {
       duration: "2m",
       preAllocatedVUs: 10,
       exec: "hitApis",
+    },
+    // API consumers hitting microservices via the store (proxy)
+    store_api_calls: {
+      executor: "constant-arrival-rate",
+      rate: 5,
+      timeUnit: "1s",
+      duration: "2m",
+      preAllocatedVUs: 5,
+      exec: "hitApisViaStore",
     },
   },
   thresholds: {
@@ -186,6 +196,71 @@ export function hitApis() {
       responses.forEach((res, i) => {
         apiDuration.add(res.timings.duration);
         checkResponse(res, `health-${i}`);
+      });
+    });
+  }
+}
+
+// --- Scenario: Hit microservice APIs via the store (proxy) -------------------
+export function hitApisViaStore() {
+  const scenario = Math.random();
+
+  if (scenario < 0.4) {
+    // Shipping rates via store
+    group("Store → Shipping", () => {
+      const payload = JSON.stringify({
+        origin: {
+          zip: "10001",
+          city: "New York",
+          state: "NY",
+          country: "US",
+        },
+        destination: {
+          zip: pick(["90001", "60601", "77001", "98101", "30301"]),
+          city: "Los Angeles",
+          state: "CA",
+          country: "US",
+        },
+        package: {
+          weight: Math.floor(Math.random() * 48) + 4,
+          length: 12,
+          width: 12,
+          height: 2,
+        },
+      });
+      const res = http.post(`${BASE_URL}/api/v1/shipping/rates`, payload, {
+        headers: { "Content-Type": "application/json" },
+      });
+      proxyDuration.add(res.timings.duration);
+      checkResponse(res, "store→shipping");
+    });
+  } else if (scenario < 0.7) {
+    // Recommendations via store
+    group("Store → Recommendations", () => {
+      const productId = Math.floor(Math.random() * 32) + 1;
+      const res = http.get(
+        `${BASE_URL}/api/v1/recommendations?product_id=${productId}&limit=4`
+      );
+      proxyDuration.add(res.timings.duration);
+      checkResponse(res, "store→recommendations");
+    });
+  } else {
+    // Notifications via store
+    group("Store → Notifications", () => {
+      const payload = JSON.stringify({
+        notification: {
+          type: pick(["order_confirmation", "shipping_update", "delivery_confirmation"]),
+          recipient: `user${Math.floor(Math.random() * 100)}@example.com`,
+          subject: "Load test notification",
+          payload: { order_number: `R${Math.floor(Math.random() * 999999999)}` },
+        },
+      });
+      const res = http.post(`${BASE_URL}/api/v1/notifications`, payload, {
+        headers: { "Content-Type": "application/json" },
+      });
+      proxyDuration.add(res.timings.duration);
+      check(res, {
+        "store→notification created": (r) => r.status >= 200 && r.status < 300,
       });
     });
   }

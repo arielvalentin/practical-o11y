@@ -38,6 +38,15 @@ Rails.application.routes.draw do
   # We ask that you don't use the :as option here, as Spree relies on it being
   # the default of "spree".
   mount Spree::Core::Engine, at: '/'
+
+  namespace :api do
+    namespace :v1 do
+      post "shipping/rates", to: "shipping_rates#create"
+      get  "recommendations", to: "recommendations#index"
+      post "notifications",   to: "notifications#create"
+    end
+  end
+
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
