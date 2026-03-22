@@ -123,6 +123,12 @@ curl -X POST http://localhost:3003/api/v1/notifications \
   }'
 ```
 
+### List Notifications
+
+```bash
+curl "http://localhost:3003/api/v1/notifications?limit=10"
+```
+
 ## Project Structure
 
 ```
