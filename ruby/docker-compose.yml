@@ -34,6 +34,7 @@ services:
         condition: service_healthy
     volumes:
       - ./store:/app
+      - store_bundle:/usr/local/bundle
 
   shipping:
     build:
@@ -50,6 +51,7 @@ services:
         condition: service_healthy
     volumes:
       - ./shipping-service:/app
+      - shipping_bundle:/usr/local/bundle
 
   recommendations:
     build:
@@ -66,6 +68,7 @@ services:
         condition: service_healthy
     volumes:
       - ./recommendation-service:/app
+      - recommendations_bundle:/usr/local/bundle
 
   notifications:
     build:
@@ -82,6 +85,11 @@ services:
         condition: service_healthy
     volumes:
       - ./notification-service:/app
+      - notifications_bundle:/usr/local/bundle
 
 volumes:
   postgres_data:
+  store_bundle:
+  shipping_bundle:
+  recommendations_bundle:
+  notifications_bundle:
