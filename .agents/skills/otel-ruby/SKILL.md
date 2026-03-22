@@ -274,17 +274,27 @@ MyApp::TRACER.in_span("checkout") do |span|
 end
 ```
 
-### Recording Exceptions
+### Exception Handling
+
+The `in_span` helper automatically calls `record_exception` and sets `status = error` when the block raises — no manual rescue needed:
 
 ```ruby
+# Preferred — in_span handles exception recording and status automatically
 MyApp::TRACER.in_span("risky-operation") do |span|
-  begin
-    perform_risky_work
-  rescue StandardError => e
-    span.record_exception(e)
-    span.status = OpenTelemetry::Trace::Status.error(e.message)
-    raise  # re-raise to preserve normal error flow
-  end
+  span.set_attribute("order.id", order.id)
+  perform_risky_work
+end
+```
+
+Only use manual `record_exception` when you need to record an error but **not** re-raise:
+
+```ruby
+MyApp::TRACER.in_span("best-effort-operation") do |span|
+  perform_work
+rescue SomeNonFatalError => e
+  span.record_exception(e)
+  span.status = OpenTelemetry::Trace::Status.error(e.message)
+  # intentionally swallowed — operation is best-effort
 end
 ```
 
@@ -457,6 +467,7 @@ class OrderNotificationSubscriber
     ) do |span|
       NotificationClient.new.order_placed(order)
     rescue NotificationClient::NotificationError => e
+      # Best-effort — log and swallow so the order flow isn't interrupted
       span.record_exception(e)
       span.status = OpenTelemetry::Trace::Status.error(e.message)
       Rails.logger.warn("[OrderNotificationSubscriber] #{e.message}")

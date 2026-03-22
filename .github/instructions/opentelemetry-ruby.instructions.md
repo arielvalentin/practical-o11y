@@ -5,6 +5,12 @@ applyTo: '**/*.rb'
 
 # OpenTelemetry Ruby Best Practices
 
+## Library Instrumentation First
+
+- Always prefer library instrumentation (auto-instrumentation gems) over manual instrumentation
+- Only add manual spans when library instrumentation does not cover a code path (e.g., custom business logic, event subscribers, domain-specific operations)
+- Do not re-implement what library instrumentation already provides — enrich existing spans with custom attributes instead
+
 ## Span Naming
 
 - Use **lowercase dot-delimited** names: `order.create`, `payment.process`, `notification.send`
@@ -22,17 +28,15 @@ applyTo: '**/*.rb'
 
 ## Error Handling
 
-- Always `record_exception` and set `status = error` when catching exceptions in spans
-- Re-raise exceptions after recording them — don't swallow errors
+- Let `Tracer#in_span` handle exception recording automatically — it calls `record_exception` and sets `status = error` when the block raises
+- Do not manually rescue, `record_exception`, and re-raise inside an `in_span` block — that duplicates what the helper already does
 - Set `status = ok` only when you want to explicitly mark success (unset is also valid)
 
 ```ruby
-begin
+# Preferred — in_span records the exception and sets error status automatically
+tracer.in_span("process-order") do |span|
+  span.set_attribute("order.id", order.id)
   perform_work
-rescue StandardError => e
-  span.record_exception(e)
-  span.status = OpenTelemetry::Trace::Status.error(e.message)
-  raise
 end
 ```
 
@@ -72,8 +76,6 @@ end
 ## Docker Compose
 
 - Configure `OTEL_EXPORTER_OTLP_ENDPOINT` to point to the collector's Docker service name (e.g., `http://otel-collector:4318`)
-- Add health checks to the collector and backends
-- Use `depends_on` with `condition: service_healthy` for startup ordering
 - Set `OTEL_SDK_DISABLED=true` in test/CI containers
 
 ## Testing Instrumentation
