@@ -17,4 +17,6 @@
 # Rails
 log/
 tmp/
+storage/
+!storage/.keep
 k6-report.html
