@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  store:
+    build:
+      context: ./store
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
+      RAILS_SERVE_STATIC_FILES: "1"
+      RAILS_LOG_TO_STDOUT: "1"
+      SPREE_URL_PROTOCOL: http
+      DATABASE_HOST: postgres
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      SHIPPING_SERVICE_URL: http://shipping:3001
+      RECOMMENDATION_SERVICE_URL: http://recommendations:3002
+      NOTIFICATION_SERVICE_URL: http://notifications:3003
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./store:/app
+      - store_bundle:/usr/local/bundle
+
+  shipping:
+    build:
+      context: ./shipping-service
+    ports:
+      - "3001:3001"
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
+      RAILS_SERVE_STATIC_FILES: "1"
+      RAILS_LOG_TO_STDOUT: "1"
+      DATABASE_HOST: postgres
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./shipping-service:/app
+      - shipping_bundle:/usr/local/bundle
+
+  recommendations:
+    build:
+      context: ./recommendation-service
+    ports:
+      - "3002:3002"
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
+      RAILS_SERVE_STATIC_FILES: "1"
+      RAILS_LOG_TO_STDOUT: "1"
+      DATABASE_HOST: postgres
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./recommendation-service:/app
+      - recommendations_bundle:/usr/local/bundle
+
+  notifications:
+    build:
+      context: ./notification-service
+    ports:
+      - "3003:3003"
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
+      RAILS_SERVE_STATIC_FILES: "1"
+      RAILS_LOG_TO_STDOUT: "1"
+      DATABASE_HOST: postgres
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./notification-service:/app
+      - notifications_bundle:/usr/local/bundle
+
+volumes:
+  postgres_data:
+  store_bundle:
+  shipping_bundle:
+  recommendations_bundle:
+  notifications_bundle:
