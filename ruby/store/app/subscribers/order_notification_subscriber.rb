@@ -1,9 +1,4 @@
 class OrderNotificationSubscriber
-  include Spree::Event::Subscriber
-
-  event_action :order_finalized
-  event_action :shipment_shipped
-
   def order_finalized(event)
     order = event.payload[:order]
     return unless order

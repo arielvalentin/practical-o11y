@@ -17,5 +17,3 @@ test:
 production:
   <<: *default
   database: notification_service_production
-  username: notification_service
-  password: <%= ENV["NOTIFICATION_SERVICE_DATABASE_PASSWORD"] %>

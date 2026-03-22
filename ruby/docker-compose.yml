@@ -22,7 +22,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      RAILS_ENV: development
+      RAILS_ENV: production
+      SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
+      RAILS_SERVE_STATIC_FILES: "1"
+      RAILS_LOG_TO_STDOUT: "1"
       DATABASE_HOST: postgres
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
@@ -42,7 +45,10 @@ services:
     ports:
       - "3001:3001"
     environment:
-      RAILS_ENV: development
+      RAILS_ENV: production
+      SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
+      RAILS_SERVE_STATIC_FILES: "1"
+      RAILS_LOG_TO_STDOUT: "1"
       DATABASE_HOST: postgres
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
@@ -59,7 +65,10 @@ services:
     ports:
       - "3002:3002"
     environment:
-      RAILS_ENV: development
+      RAILS_ENV: production
+      SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
+      RAILS_SERVE_STATIC_FILES: "1"
+      RAILS_LOG_TO_STDOUT: "1"
       DATABASE_HOST: postgres
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
@@ -76,7 +85,10 @@ services:
     ports:
       - "3003:3003"
     environment:
-      RAILS_ENV: development
+      RAILS_ENV: production
+      SECRET_KEY_BASE: demo-secret-key-base-not-for-real-production-use
+      RAILS_SERVE_STATIC_FILES: "1"
+      RAILS_LOG_TO_STDOUT: "1"
       DATABASE_HOST: postgres
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
