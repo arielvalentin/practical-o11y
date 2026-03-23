@@ -27,17 +27,12 @@ services:
       - "4318:4318"   # OTLP HTTP
       - "8889:8889"   # Prometheus metrics
       - "13133:13133" # Health check
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
     depends_on:
       tempo:
         condition: service_started
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.7.2
     command: ["-config.file=/etc/tempo/config.yaml"]
     volumes:
       - ./tempo-config.yaml:/etc/tempo/config.yaml:ro
@@ -55,7 +50,7 @@ services:
       - "9090:9090"
     depends_on:
       otel-collector:
-        condition: service_healthy
+        condition: service_started
 
   grafana:
     image: grafana/grafana:latest
@@ -101,7 +96,7 @@ services:
       postgres:
         condition: service_healthy
       otel-collector:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./store:/app
       - store_bundle:/usr/local/bundle
@@ -126,7 +121,7 @@ services:
       postgres:
         condition: service_healthy
       otel-collector:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./shipping-service:/app
       - shipping_bundle:/usr/local/bundle
@@ -151,7 +146,7 @@ services:
       postgres:
         condition: service_healthy
       otel-collector:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./recommendation-service:/app
       - recommendations_bundle:/usr/local/bundle
@@ -176,7 +171,7 @@ services:
       postgres:
         condition: service_healthy
       otel-collector:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./notification-service:/app
       - notifications_bundle:/usr/local/bundle
