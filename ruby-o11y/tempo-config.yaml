@@ -8,6 +8,9 @@ distributor:
         grpc:
           endpoint: 0.0.0.0:4317
 
+ingester:
+  max_block_duration: 1m
+
 storage:
   trace:
     backend: local
@@ -15,3 +18,7 @@ storage:
       path: /var/tempo/traces
     wal:
       path: /var/tempo/wal
+
+query_frontend:
+  search:
+    max_duration: 0s

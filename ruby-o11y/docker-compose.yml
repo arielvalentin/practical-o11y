@@ -92,6 +92,7 @@ services:
       OTEL_SERVICE_NAME: store
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=practical-o11y"
+      OTEL_LOG_LEVEL: info
     depends_on:
       postgres:
         condition: service_healthy
@@ -117,6 +118,7 @@ services:
       OTEL_SERVICE_NAME: shipping-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=practical-o11y"
+      OTEL_LOG_LEVEL: info
     depends_on:
       postgres:
         condition: service_healthy
@@ -142,6 +144,7 @@ services:
       OTEL_SERVICE_NAME: recommendation-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=practical-o11y"
+      OTEL_LOG_LEVEL: info
     depends_on:
       postgres:
         condition: service_healthy
@@ -167,6 +170,7 @@ services:
       OTEL_SERVICE_NAME: notification-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=practical-o11y"
+      OTEL_LOG_LEVEL: info
     depends_on:
       postgres:
         condition: service_healthy

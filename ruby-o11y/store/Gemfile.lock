@@ -212,12 +212,6 @@ GEM
       net-http (~> 0.5)
     ffaker (2.25.0)
     ffi (1.17.3-aarch64-linux-gnu)
-    ffi (1.17.3-aarch64-linux-musl)
-    ffi (1.17.3-arm-linux-gnu)
-    ffi (1.17.3-arm-linux-musl)
-    ffi (1.17.3-arm64-darwin)
-    ffi (1.17.3-x86_64-linux-gnu)
-    ffi (1.17.3-x86_64-linux-musl)
     fiber-annotation (0.2.0)
     fiber-local (1.1.0)
       fiber-storage
@@ -245,6 +239,11 @@ GEM
       rake (>= 10.0)
     globalid (1.3.0)
       activesupport (>= 6.1)
+    google-protobuf (4.34.1-aarch64-linux-gnu)
+      bigdecimal
+      rake (~> 13.3)
+    googleapis-common-protos-types (1.22.0)
+      google-protobuf (~> 4.26)
     groupdate (6.7.0)
       activesupport (>= 7.1)
     heroicon (1.0.0)
@@ -400,21 +399,73 @@ GEM
     nio4r (2.7.5)
     nokogiri (1.19.2-aarch64-linux-gnu)
       racc (~> 1.4)
-    nokogiri (1.19.2-aarch64-linux-musl)
-      racc (~> 1.4)
-    nokogiri (1.19.2-arm-linux-gnu)
-      racc (~> 1.4)
-    nokogiri (1.19.2-arm-linux-musl)
-      racc (~> 1.4)
-    nokogiri (1.19.2-arm64-darwin)
-      racc (~> 1.4)
-    nokogiri (1.19.2-x86_64-linux-gnu)
-      racc (~> 1.4)
-    nokogiri (1.19.2-x86_64-linux-musl)
-      racc (~> 1.4)
     octokit (4.25.1)
       faraday (>= 1, < 3)
       sawyer (~> 0.9)
+    opentelemetry-api (1.8.0)
+      logger
+    opentelemetry-common (0.23.0)
+      opentelemetry-api (~> 1.0)
+    opentelemetry-exporter-otlp (0.32.0)
+      google-protobuf (>= 3.18)
+      googleapis-common-protos-types (~> 1.3)
+      opentelemetry-api (~> 1.1)
+      opentelemetry-common (~> 0.20)
+      opentelemetry-sdk (~> 1.10)
+      opentelemetry-semantic_conventions
+    opentelemetry-helpers-sql (0.3.0)
+      opentelemetry-api (~> 1.7)
+    opentelemetry-helpers-sql-processor (0.4.0)
+      opentelemetry-api (~> 1.0)
+      opentelemetry-common (~> 0.21)
+    opentelemetry-instrumentation-action_mailer (0.6.1)
+      opentelemetry-instrumentation-active_support (~> 0.10)
+    opentelemetry-instrumentation-action_pack (0.16.0)
+      opentelemetry-instrumentation-rack (~> 0.29)
+    opentelemetry-instrumentation-action_view (0.11.2)
+      opentelemetry-instrumentation-active_support (~> 0.10)
+    opentelemetry-instrumentation-active_job (0.10.1)
+      opentelemetry-instrumentation-base (~> 0.25)
+    opentelemetry-instrumentation-active_record (0.11.1)
+      opentelemetry-instrumentation-base (~> 0.25)
+    opentelemetry-instrumentation-active_storage (0.3.1)
+      opentelemetry-instrumentation-active_support (~> 0.10)
+    opentelemetry-instrumentation-active_support (0.10.1)
+      opentelemetry-instrumentation-base (~> 0.25)
+    opentelemetry-instrumentation-base (0.25.0)
+      opentelemetry-api (~> 1.7)
+      opentelemetry-common (~> 0.21)
+      opentelemetry-registry (~> 0.1)
+    opentelemetry-instrumentation-concurrent_ruby (0.24.0)
+      opentelemetry-instrumentation-base (~> 0.25)
+    opentelemetry-instrumentation-faraday (0.32.0)
+      opentelemetry-instrumentation-base (~> 0.25)
+    opentelemetry-instrumentation-net_http (0.28.0)
+      opentelemetry-instrumentation-base (~> 0.25)
+    opentelemetry-instrumentation-pg (0.35.0)
+      opentelemetry-helpers-sql
+      opentelemetry-helpers-sql-processor
+      opentelemetry-instrumentation-base (~> 0.25)
+    opentelemetry-instrumentation-rack (0.30.0)
+      opentelemetry-instrumentation-base (~> 0.25)
+    opentelemetry-instrumentation-rails (0.40.0)
+      opentelemetry-instrumentation-action_mailer (~> 0.6)
+      opentelemetry-instrumentation-action_pack (~> 0.15)
+      opentelemetry-instrumentation-action_view (~> 0.11)
+      opentelemetry-instrumentation-active_job (~> 0.10)
+      opentelemetry-instrumentation-active_record (~> 0.11)
+      opentelemetry-instrumentation-active_storage (~> 0.3)
+      opentelemetry-instrumentation-active_support (~> 0.10)
+      opentelemetry-instrumentation-concurrent_ruby (~> 0.23)
+    opentelemetry-registry (0.4.0)
+      opentelemetry-api (~> 1.1)
+    opentelemetry-sdk (1.10.0)
+      opentelemetry-api (~> 1.1)
+      opentelemetry-common (~> 0.20)
+      opentelemetry-registry (~> 0.2)
+      opentelemetry-semantic_conventions
+    opentelemetry-semantic_conventions (1.36.0)
+      opentelemetry-api (~> 1.0)
     orm_adapter (0.5.0)
     ostruct (0.6.3)
     pagy (43.4.2)
@@ -429,10 +480,6 @@ GEM
       racc
     pg (1.6.3)
     pg (1.6.3-aarch64-linux)
-    pg (1.6.3-aarch64-linux-musl)
-    pg (1.6.3-arm64-darwin)
-    pg (1.6.3-x86_64-linux)
-    pg (1.6.3-x86_64-linux-musl)
     phonelib (0.10.17)
     pp (0.6.3)
       prettyprint
@@ -780,17 +827,11 @@ GEM
       tailwindcss-ruby (~> 4.0)
     tailwindcss-ruby (4.2.1)
     tailwindcss-ruby (4.2.1-aarch64-linux-gnu)
-    tailwindcss-ruby (4.2.1-aarch64-linux-musl)
-    tailwindcss-ruby (4.2.1-arm64-darwin)
-    tailwindcss-ruby (4.2.1-x86_64-linux-gnu)
-    tailwindcss-ruby (4.2.1-x86_64-linux-musl)
     terminal-table (4.0.0)
       unicode-display_width (>= 1.1.1, < 4)
     thor (1.5.0)
     thruster (0.1.19)
     thruster (0.1.19-aarch64-linux)
-    thruster (0.1.19-arm64-darwin)
-    thruster (0.1.19-x86_64-linux)
     timecop (0.9.10)
     timeout (0.6.1)
     tinymce-rails (6.8.6.1)
@@ -837,13 +878,6 @@ GEM
 PLATFORMS
   aarch64-linux
   aarch64-linux-gnu
-  aarch64-linux-musl
-  arm-linux-gnu
-  arm-linux-musl
-  arm64-darwin-24
-  x86_64-linux
-  x86_64-linux-gnu
-  x86_64-linux-musl
 
 DEPENDENCIES
   bootsnap
@@ -859,6 +893,16 @@ DEPENDENCIES
   kamal
   letter_opener
   listen
+  opentelemetry-exporter-otlp (~> 0.31)
+  opentelemetry-instrumentation-active_job
+  opentelemetry-instrumentation-active_record
+  opentelemetry-instrumentation-active_support
+  opentelemetry-instrumentation-faraday
+  opentelemetry-instrumentation-net_http
+  opentelemetry-instrumentation-pg
+  opentelemetry-instrumentation-rack
+  opentelemetry-instrumentation-rails
+  opentelemetry-sdk (~> 1.10)
   pg (~> 1.1)
   propshaft
   puma (>= 5.0)
@@ -956,12 +1000,6 @@ CHECKSUMS
   faraday-net_http (3.4.2) sha256=f147758260d3526939bf57ecf911682f94926a3666502e24c69992765875906c
   ffaker (2.25.0) sha256=e485c5adf8195aac55662875b7f515469bca46d77b60d0e7d08db6861bcbec40
   ffi (1.17.3-aarch64-linux-gnu) sha256=28ad573df26560f0aedd8a90c3371279a0b2bd0b4e834b16a2baa10bd7a97068
-  ffi (1.17.3-aarch64-linux-musl) sha256=020b33b76775b1abacc3b7d86b287cef3251f66d747092deec592c7f5df764b2
-  ffi (1.17.3-arm-linux-gnu) sha256=5bd4cea83b68b5ec0037f99c57d5ce2dd5aa438f35decc5ef68a7d085c785668
-  ffi (1.17.3-arm-linux-musl) sha256=0d7626bb96265f9af78afa33e267d71cfef9d9a8eb8f5525344f8da6c7d76053
-  ffi (1.17.3-arm64-darwin) sha256=0c690555d4cee17a7f07c04d59df39b2fba74ec440b19da1f685c6579bb0717f
-  ffi (1.17.3-x86_64-linux-gnu) sha256=3746b01f677aae7b16dc1acb7cb3cc17b3e35bdae7676a3f568153fb0e2c887f
-  ffi (1.17.3-x86_64-linux-musl) sha256=086b221c3a68320b7564066f46fed23449a44f7a1935f1fe5a245bd89d9aea56
   fiber-annotation (0.2.0) sha256=7abfadf1d119f508867d4103bf231c0354d019cc39a5738945dec2edadaf6c03
   fiber-local (1.1.0) sha256=c885f94f210fb9b05737de65d511136ea602e00c5105953748aa0f8793489f06
   fiber-storage (1.0.1) sha256=f48e5b6d8b0be96dac486332b55cee82240057065dc761c1ea692b2e719240e1
@@ -972,6 +1010,8 @@ CHECKSUMS
   geocoder (1.8.6) sha256=e0ca1554b499f466de9b003f7dff70f89a5888761c2ca68ed9f86b6e5e24e74c
   github_changelog_generator (1.18.0) sha256=f6ad4c53a14e8d1e440492f5a7b3d0a4c76e072add568e78b437510b2f02d000
   globalid (1.3.0) sha256=05c639ad6eb4594522a0b07983022f04aa7254626ab69445a0e493aa3786ff11
+  google-protobuf (4.34.1-aarch64-linux-gnu)
+  googleapis-common-protos-types (1.22.0)
   groupdate (6.7.0) sha256=beaa8d5bf3856814681914a1d4a20e77436a2214b85d0017dc2ea5c355fb6777
   heroicon (1.0.0) sha256=e63a535a630d6fd3d99c0179d722753c8cd3478df1277eca7a4215c135b6e9cb
   highline (3.1.2) sha256=67cbd34d19f6ef11a7ee1d82ffab5d36dfd5b3be861f450fc1716c7125f4bb4a
@@ -1034,13 +1074,29 @@ CHECKSUMS
   net-ssh (7.3.1) sha256=229d518b429211bebd89151e2a12febff0631138513ac259953aa7b7cd42b53b
   nio4r (2.7.5) sha256=6c90168e48fb5f8e768419c93abb94ba2b892a1d0602cb06eef16d8b7df1dca1
   nokogiri (1.19.2-aarch64-linux-gnu) sha256=c34d5c8208025587554608e98fd88ab125b29c80f9352b821964e9a5d5cfbd19
-  nokogiri (1.19.2-aarch64-linux-musl) sha256=7f6b4b0202d507326841a4f790294bf75098aef50c7173443812e3ac5cb06515
-  nokogiri (1.19.2-arm-linux-gnu) sha256=b7fa1139016f3dc850bda1260988f0d749934a939d04ef2da13bec060d7d5081
-  nokogiri (1.19.2-arm-linux-musl) sha256=61114d44f6742ff72194a1b3020967201e2eb982814778d130f6471c11f9828c
-  nokogiri (1.19.2-arm64-darwin) sha256=58d8ea2e31a967b843b70487a44c14c8ba1866daa1b9da9be9dbdf1b43dee205
-  nokogiri (1.19.2-x86_64-linux-gnu) sha256=fa8feca882b73e871a9845f3817a72e9734c8e974bdc4fbad6e4bc6e8076b94f
-  nokogiri (1.19.2-x86_64-linux-musl) sha256=93128448e61a9383a30baef041bf1f5817e22f297a1d400521e90294445069a8
   octokit (4.25.1) sha256=c02092ee82dcdfe84db0e0ea630a70d32becc54245a4f0bacfd21c010df09b96
+  opentelemetry-api (1.8.0)
+  opentelemetry-common (0.23.0)
+  opentelemetry-exporter-otlp (0.32.0)
+  opentelemetry-helpers-sql (0.3.0)
+  opentelemetry-helpers-sql-processor (0.4.0)
+  opentelemetry-instrumentation-action_mailer (0.6.1)
+  opentelemetry-instrumentation-action_pack (0.16.0)
+  opentelemetry-instrumentation-action_view (0.11.2)
+  opentelemetry-instrumentation-active_job (0.10.1)
+  opentelemetry-instrumentation-active_record (0.11.1)
+  opentelemetry-instrumentation-active_storage (0.3.1)
+  opentelemetry-instrumentation-active_support (0.10.1)
+  opentelemetry-instrumentation-base (0.25.0)
+  opentelemetry-instrumentation-concurrent_ruby (0.24.0)
+  opentelemetry-instrumentation-faraday (0.32.0)
+  opentelemetry-instrumentation-net_http (0.28.0)
+  opentelemetry-instrumentation-pg (0.35.0)
+  opentelemetry-instrumentation-rack (0.30.0)
+  opentelemetry-instrumentation-rails (0.40.0)
+  opentelemetry-registry (0.4.0)
+  opentelemetry-sdk (1.10.0)
+  opentelemetry-semantic_conventions (1.36.0)
   orm_adapter (0.5.0) sha256=aa5d0be5d540cbb46d3a93e88061f4ece6a25f6e97d6a47122beb84fe595e9b9
   ostruct (0.6.3) sha256=95a2ed4a4bd1d190784e666b47b2d3f078e4a9efda2fccf18f84ddc6538ed912
   pagy (43.4.2) sha256=9eea8345a04bb54a636a95b976e6cd1e77242b91d8ad1dea9bc620d294bc8fc9
@@ -1049,10 +1105,6 @@ CHECKSUMS
   parser (3.3.10.2) sha256=6f60c84aa4bdcedb6d1a2434b738fe8a8136807b6adc8f7f53b97da9bc4e9357
   pg (1.6.3) sha256=1388d0563e13d2758c1089e35e973a3249e955c659592d10e5b77c468f628a99
   pg (1.6.3-aarch64-linux) sha256=0698ad563e02383c27510b76bf7d4cd2de19cd1d16a5013f375dd473e4be72ea
-  pg (1.6.3-aarch64-linux-musl) sha256=06a75f4ea04b05140146f2a10550b8e0d9f006a79cdaf8b5b130cde40e3ecc2c
-  pg (1.6.3-arm64-darwin) sha256=7240330b572e6355d7c75a7de535edb5dfcbd6295d9c7777df4d9dddfb8c0e5f
-  pg (1.6.3-x86_64-linux) sha256=5d9e188c8f7a0295d162b7b88a768d8452a899977d44f3274d1946d67920ae8d
-  pg (1.6.3-x86_64-linux-musl) sha256=9c9c90d98c72f78eb04c0f55e9618fe55d1512128e411035fe229ff427864009
   phonelib (0.10.17) sha256=8c97b6abc1877a8313ef32f9438cd35e24a943f9a70666af85eb69ab81caf4e3
   pp (0.6.3) sha256=2951d514450b93ccfeb1df7d021cae0da16e0a7f95ee1e2273719669d0ab9df6
   prettyprint (0.2.0) sha256=2bc9e15581a94742064a3cc8b0fb9d45aae3d03a1baa6ef80922627a0766f193
@@ -1143,16 +1195,10 @@ CHECKSUMS
   tailwindcss-rails (4.4.0) sha256=efa2961351a52acebe616e645a81a30bb4f27fde46cc06ce7688d1cd1131e916
   tailwindcss-ruby (4.2.1) sha256=95886a1e24b42d76792c787d34e47098b53cb3b5a6363845bca4486f52b2e66a
   tailwindcss-ruby (4.2.1-aarch64-linux-gnu) sha256=de457ddfc999c6bbbe1a59fbc11eb2168d619f6e0cb72d8d3334d372b331e36f
-  tailwindcss-ruby (4.2.1-aarch64-linux-musl) sha256=e6ed27704263201f8366316354aa45f9016cc9378ce8fac46fbbe65fafd4da5e
-  tailwindcss-ruby (4.2.1-arm64-darwin) sha256=bcf222fb8542cf5433925623e5e7b257897fbb8291a2350daae870a32f2eeb91
-  tailwindcss-ruby (4.2.1-x86_64-linux-gnu) sha256=201d0e5e5d4aba52cae4ee4bd1acd497d2790c83e7f15da964aab8ec93876831
-  tailwindcss-ruby (4.2.1-x86_64-linux-musl) sha256=79fa48ad51e533545f9fdbb04227e1342a65a42c2bd1314118b95473d5612007
   terminal-table (4.0.0) sha256=f504793203f8251b2ea7c7068333053f0beeea26093ec9962e62ea79f94301d2
   thor (1.5.0) sha256=e3a9e55fe857e44859ce104a84675ab6e8cd59c650a49106a05f55f136425e73
   thruster (0.1.19) sha256=3246eb6ea6fe699e89d6eecc4edda856452e4ebeb9d5999791f0e88832369527
   thruster (0.1.19-aarch64-linux) sha256=cfabff204f655359675c3f0e3e3940c6d1f110b765d0d48f5281077b8bb65325
-  thruster (0.1.19-arm64-darwin) sha256=2e1994341ad1076cea438a5a86b0dc126dc6e66f5a67f2dc077779b73e9fb6e3
-  thruster (0.1.19-x86_64-linux) sha256=7cddc1bd0c4fb2e26cc4878dc1f4eb7e883a45932e8d1cacda71b1aba1a645b6
   timecop (0.9.10) sha256=12ba45ce57cdcf6b1043cb6cdffa6381fd89ce10d369c28a7f6f04dc1b0cd8eb
   timeout (0.6.1) sha256=78f57368a7e7bbadec56971f78a3f5ecbcfb59b7fcbb0a3ed6ddc08a5094accb
   tinymce-rails (6.8.6.1) sha256=b249fccfb300d8cdb361a443e859d6b45ec6d7bbd1466817008ee0af2a3d516c

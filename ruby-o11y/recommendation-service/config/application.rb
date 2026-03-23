@@ -18,10 +18,32 @@ require "rails/test_unit/railtie"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
+require "opentelemetry/sdk"
+require "opentelemetry/exporter/otlp"
+
+OpenTelemetry::SDK.configure do |c|
+  c.service_name = ENV.fetch("OTEL_SERVICE_NAME", "recommendation-service")
+
+  c.resource = OpenTelemetry::SDK::Resources::Resource.create(
+    "deployment.environment" => ENV.fetch("RAILS_ENV", "development"),
+    "service.version" => ENV.fetch("APP_VERSION", "0.1.0")
+  )
+
+  c.use "OpenTelemetry::Instrumentation::Rack", use_rack_events: false
+  c.use "OpenTelemetry::Instrumentation::Rails"
+  c.use "OpenTelemetry::Instrumentation::PG", db_statement: :obfuscate
+  c.use "OpenTelemetry::Instrumentation::ActiveRecord"
+end
+
 module RecommendationService
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
+
+    config.middleware.insert_before(
+      0,
+      *OpenTelemetry::Instrumentation::Rack::Instrumentation.instance.middleware_args
+    )
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
