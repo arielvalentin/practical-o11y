@@ -1,0 +1,233 @@
+# Practical Observability — Ruby on Rails Demo (Minimal OTel + Jaeger)
+
+A multi-service ecommerce platform built with Ruby on Rails, instrumented with OpenTelemetry and exporting traces to Jaeger via an OTel Collector.
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                            Docker Compose                                │
+│                                                                          │
+│  ┌──────────────┐    HTTP     ┌──────────────────────┐                  │
+│  │              │────────────▶│  Shipping Service    │                  │
+│  │              │             │  :3001               │                  │
+│  │              │             └──────────────────────┘                  │
+│  │              │                                                        │
+│  │    Spree     │    HTTP     ┌──────────────────────┐                  │
+│  │    Store     │────────────▶│  Recommendation Svc  │                  │
+│  │    :3000     │             │  :3002               │                  │
+│  │              │             └──────────────────────┘                  │
+│  │              │                                                        │
+│  │              │    HTTP     ┌──────────────────────┐                  │
+│  │              │────────────▶│  Notification Svc    │                  │
+│  │              │             │  :3003               │                  │
+│  └──────┬───────┘             └──────────┬───────────┘                  │
+│         │                                │                               │
+│         │         ┌──────────┐           │                               │
+│         └────────▶│PostgreSQL│◀──────────┘                               │
+│                   │  :5432   │                                            │
+│                   └──────────┘                                            │
+│                                                                          │
+│  ┌──────────────┐  OTLP/gRPC  ┌──────────────┐                         │
+│  │  All Rails   │────────────▶│     OTel     │                          │
+│  │  Services    │  (HTTP)     │   Collector  │                          │
+│  └──────────────┘             └──────┬───────┘                          │
+│                                      │ OTLP/gRPC                        │
+│                               ┌──────▼───────┐                          │
+│                               │    Jaeger    │                          │
+│                               │   :16686     │                          │
+│                               └──────────────┘                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+## Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| **Store** | 3000 | Main Spree Commerce app — storefront, admin, API |
+| **Shipping** | 3001 | Mock shipping rate calculator (ground, express, overnight) |
+| **Recommendations** | 3002 | Mock product recommendation engine |
+| **Notifications** | 3003 | Email/notification dispatcher with DB persistence |
+| **PostgreSQL** | 5432 | Shared database (separate DB per service) |
+| **OTel Collector** | 4317/4318 | Receives OTLP traces, filters health spans, exports to Jaeger |
+| **Jaeger** | 16686 | Trace visualization UI |
+
+## OpenTelemetry Instrumentation
+
+All 4 Rails services are instrumented with `opentelemetry-instrumentation-all` using `c.use_all`. The ActionPack Railtie auto-inserts `Rack::Events` middleware for HTTP server spans.
+
+### Gems
+
+```ruby
+gem "opentelemetry-sdk", "~> 1.10"
+gem "opentelemetry-exporter-otlp", "~> 0.31"
+gem "opentelemetry-instrumentation-all"
+```
+
+### Initializer (`config/initializers/opentelemetry.rb`)
+
+```ruby
+require "opentelemetry/sdk"
+require "opentelemetry/exporter/otlp"
+require "opentelemetry/instrumentation/all"
+
+OpenTelemetry::SDK.configure do |c|
+  c.service_name = ENV.fetch("OTEL_SERVICE_NAME", "my-service")
+  c.resource = OpenTelemetry::SDK::Resources::Resource.create(
+    "deployment.environment" => ENV.fetch("RAILS_ENV", "development"),
+    "service.version" => ENV.fetch("APP_VERSION", "0.1.0")
+  )
+  c.use_all("OpenTelemetry::Instrumentation::PG" => { db_statement: :obfuscate })
+end
+```
+
+### Environment Variables
+
+Set via `docker-compose.yml` on each service:
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `OTEL_SERVICE_NAME` | `store`, `shipping-service`, etc. | Unique service identity |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4318` | Collector OTLP HTTP endpoint |
+| `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment=production,...` | Resource metadata |
+| `OTEL_LOG_LEVEL` | `info` | OTel SDK diagnostic logging |
+
+## Communication Patterns
+
+These patterns are designed to showcase different OpenTelemetry trace scenarios:
+
+- **Store → Shipping**: Synchronous HTTP during checkout (demonstrates HTTP client/server spans)
+- **Store → Recommendations**: Synchronous HTTP on product pages (demonstrates cross-service traces)
+- **Store → Notifications**: Event-driven via Spree subscribers (demonstrates async/background job tracing)
+
+## Quick Start
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+- Ruby 4.0+ (for local development without Docker)
+
+### Start Everything
+
+```bash
+cd ruby
+docker compose up --build
+```
+
+### Setup Databases
+
+In a separate terminal:
+
+```bash
+# Run migrations for each service
+docker compose exec store bin/rails db:create db:migrate
+docker compose exec store bin/rails db:seed AUTO_ACCEPT=1
+docker compose exec store bin/rails spree_sample:load
+docker compose exec notifications bin/rails db:create db:migrate
+```
+
+The shipping and recommendation services are stateless (no migrations needed).
+
+### Access
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:3000 | Storefront |
+| http://localhost:3000/admin | Admin Panel (spree@example.com / spree123) |
+| http://localhost:3001/api/v1/health | Shipping service health |
+| http://localhost:3002/api/v1/health | Recommendation service health |
+| http://localhost:3003/api/v1/health | Notification service health |
+| http://localhost:16686 | Jaeger UI — trace visualization |
+
+## API Examples
+
+### Shipping Rates
+
+```bash
+curl -X POST http://localhost:3001/api/v1/rates \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": {"zip": "10001", "city": "New York", "state": "NY", "country": "US"},
+    "destination": {"zip": "90210", "city": "Beverly Hills", "state": "CA", "country": "US"},
+    "package": {"weight": 2.5, "length": 10, "width": 8, "height": 4}
+  }'
+```
+
+### Product Recommendations
+
+```bash
+curl "http://localhost:3002/api/v1/recommendations?product_id=prod_001&limit=3"
+```
+
+### Send Notification
+
+```bash
+curl -X POST http://localhost:3003/api/v1/notifications \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notification": {
+      "type": "order_placed",
+      "recipient": "customer@example.com",
+      "payload": {"order_number": "R123456789"}
+    }
+  }'
+```
+
+### List Notifications
+
+```bash
+curl "http://localhost:3003/api/v1/notifications?limit=10"
+```
+
+## Load Testing
+
+Install [k6](https://k6.io/) (`brew install k6`), then:
+
+```bash
+# Run with live dashboard (http://localhost:5665)
+K6_WEB_DASHBOARD=true k6 run ruby/k6/load-test.js
+
+# Export a standalone HTML report you can open anytime
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=k6-report.html k6 run ruby/k6/load-test.js
+
+# Keep the live dashboard open after the test finishes (Ctrl+C to stop)
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_OPEN=true k6 run --pause-after ruby/k6/load-test.js
+```
+
+The test runs four scenarios in parallel for 2 minutes:
+
+| Scenario | Type | Description |
+|---|---|---|
+| `browse` | HTTP | Simulates users browsing the storefront (1→10 VUs) |
+| `api_calls` | HTTP | Hits microservice APIs directly at 10 req/s |
+| `store_api_calls` | HTTP | Hits microservices via store proxy at 5 req/s |
+| `browser_users` | Chromium | Real browser user journeys (1→3 VUs) |
+
+## Project Structure
+
+```
+ruby/
+├── docker-compose.yml           # Orchestrates all services
+├── init-databases.sql           # Creates databases on first run
+├── store/                       # Spree Commerce (Rails full-stack)
+│   ├── app/clients/             # HTTP clients for microservices
+│   ├── app/subscribers/         # Spree event subscribers
+│   └── ...
+├── shipping-service/            # Rails API
+│   ├── app/services/            # ShippingRateCalculator
+│   └── ...
+├── recommendation-service/      # Rails API
+│   ├── app/services/            # RecommendationEngine
+│   └── ...
+└── notification-service/        # Rails API
+    ├── app/services/            # NotificationDispatcher
+    ├── app/models/              # Notification (persisted)
+    └── ...
+```
+
+## Next Steps
+
+- [ ] Add custom spans for business logic (e.g., shipping rate calculation, recommendation engine)
+- [ ] Add trace context to structured logs for correlation
+- [ ] Configure sampling for production traffic volume
+- [ ] Add Prometheus metrics collection
