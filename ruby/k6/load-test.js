@@ -69,6 +69,15 @@ export const options = {
       preAllocatedVUs: 5,
       exec: "hitApisViaStore",
     },
+    // Health checks — low frequency, ~1 every 10s
+    health_checks: {
+      executor: "constant-arrival-rate",
+      rate: 1,
+      timeUnit: "10s",
+      duration: "2m",
+      preAllocatedVUs: 1,
+      exec: "checkHealth",
+    },
     // Real browser users browsing the storefront
     browser_users: {
       executor: "ramping-vus",
@@ -97,7 +106,7 @@ function pick(arr) {
 
 function checkResponse(res, name) {
   const ok = check(res, {
-    [`${name} status 200`]: (r) => r.status === 200,
+    [`${name} status 2xx`]: (r) => r.status >= 200 && r.status < 300,
   });
   errorRate.add(!ok);
   return ok;
@@ -112,6 +121,14 @@ export function browseStore() {
   });
 
   sleep(1 + Math.random() * 2);
+
+  group("Product Listing", () => {
+    const res = http.get(`${BASE_URL}/products`);
+    storefrontDuration.add(res.timings.duration);
+    checkResponse(res, "product listing");
+  });
+
+  sleep(0.5 + Math.random());
 
   group("Product Page", () => {
     const slug = pick(PRODUCT_SLUGS);
@@ -142,7 +159,7 @@ export function browseStore() {
 export function hitApis() {
   const scenario = Math.random();
 
-  if (scenario < 0.4) {
+  if (scenario < 0.35) {
     // Shipping rates
     group("Shipping API", () => {
       const payload = JSON.stringify({
@@ -171,7 +188,7 @@ export function hitApis() {
       apiDuration.add(res.timings.duration);
       checkResponse(res, "shipping rates");
     });
-  } else if (scenario < 0.7) {
+  } else if (scenario < 0.6) {
     // Recommendations
     group("Recommendations API", () => {
       const productId = Math.floor(Math.random() * 32) + 1;
@@ -181,7 +198,7 @@ export function hitApis() {
       apiDuration.add(res.timings.duration);
       checkResponse(res, "recommendations");
     });
-  } else if (scenario < 0.85) {
+  } else if (scenario < 0.8) {
     // Notifications - send
     group("Notifications API - Send", () => {
       const payload = JSON.stringify({
@@ -196,22 +213,16 @@ export function hitApis() {
         headers: { "Content-Type": "application/json" },
       });
       apiDuration.add(res.timings.duration);
-      check(res, {
-        "notification created": (r) => r.status >= 200 && r.status < 300,
-      });
+      checkResponse(res, "notification created");
     });
   } else {
-    // Health checks across all services
-    group("Health Checks", () => {
-      const responses = http.batch([
-        ["GET", `${SHIPPING_URL}/api/v1/health`],
-        ["GET", `${RECOMMENDATIONS_URL}/api/v1/health`],
-        ["GET", `${NOTIFICATIONS_URL}/api/v1/health`],
-      ]);
-      responses.forEach((res, i) => {
-        apiDuration.add(res.timings.duration);
-        checkResponse(res, `health-${i}`);
-      });
+    // Notifications - list recent
+    group("Notifications API - List", () => {
+      const res = http.get(
+        `${NOTIFICATIONS_URL}/api/v1/notifications?limit=${Math.floor(Math.random() * 20) + 1}`
+      );
+      apiDuration.add(res.timings.duration);
+      checkResponse(res, "notifications list");
     });
   }
 }
@@ -249,7 +260,7 @@ export function hitApisViaStore() {
       proxyDuration.add(res.timings.duration);
       checkResponse(res, "store→shipping");
     });
-  } else if (scenario < 0.7) {
+  } else if (scenario < 0.65) {
     // Recommendations via store
     group("Store → Recommendations", () => {
       const productId = Math.floor(Math.random() * 32) + 1;
@@ -260,7 +271,7 @@ export function hitApisViaStore() {
       checkResponse(res, "store→recommendations");
     });
   } else {
-    // Notifications via store
+    // Notifications - send via store
     group("Store → Notifications", () => {
       const payload = JSON.stringify({
         notification: {
@@ -274,11 +285,25 @@ export function hitApisViaStore() {
         headers: { "Content-Type": "application/json" },
       });
       proxyDuration.add(res.timings.duration);
-      check(res, {
-        "store→notification created": (r) => r.status >= 200 && r.status < 300,
-      });
+      checkResponse(res, "store→notification created");
     });
   }
+}
+
+// --- Scenario: Health checks (low frequency) ---------------------------------
+export function checkHealth() {
+  group("Health Checks", () => {
+    const responses = http.batch([
+      ["GET", `${BASE_URL}/up`],
+      ["GET", `${SHIPPING_URL}/api/v1/health`],
+      ["GET", `${RECOMMENDATIONS_URL}/api/v1/health`],
+      ["GET", `${NOTIFICATIONS_URL}/api/v1/health`],
+    ]);
+    responses.forEach((res, i) => {
+      const names = ["store", "shipping", "recommendations", "notifications"];
+      checkResponse(res, `health-${names[i]}`);
+    });
+  });
 }
 
 // --- Scenario: Real browser user journey -------------------------------------

@@ -33,6 +33,11 @@ services:
       - "16686:16686"
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:16686/ || exit 1"]
       interval: 5s
@@ -43,6 +48,7 @@ services:
     build:
       context: ./store
       dockerfile: Dockerfile.dev
+    command: ["bash", "-c", "bin/rails db:prepare && bin/rails server -b 0.0.0.0 -p 3000"]
     ports:
       - "3000:3000"
     environment:
@@ -125,6 +131,7 @@ services:
   notifications:
     build:
       context: ./notification-service
+    command: ["bash", "-c", "bin/rails db:prepare && bin/rails server -b 0.0.0.0 -p 3003"]
     ports:
       - "3003:3003"
     environment:
