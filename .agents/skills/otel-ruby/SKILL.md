@@ -24,10 +24,10 @@ gem "opentelemetry-exporter-otlp", "~> 0.31"
 
 ```ruby
 # Gemfile — pulls in all available instrumentation gems
-gem "opentelemetry-instrumentation-all", "~> 0.74"
+gem "opentelemetry-instrumentation-all"
 ```
 
-Use this for quick setup. For production, prefer selecting only the instrumentations you need.
+Use this for all Rails applications. It ensures the ActionPack Railtie is loaded, which auto-inserts `Rack::Events` middleware into the Rails middleware stack for server spans.
 
 ### Individual Instrumentation Gems
 
@@ -97,7 +97,7 @@ Create `config/initializers/opentelemetry.rb`:
 ```ruby
 require "opentelemetry/sdk"
 require "opentelemetry/exporter/otlp"
-require "opentelemetry/instrumentation/all"  # or require individual gems
+require "opentelemetry/instrumentation/all"
 
 OpenTelemetry::SDK.configure do |c|
   c.service_name = ENV.fetch("OTEL_SERVICE_NAME", "my-service")
@@ -107,20 +107,26 @@ OpenTelemetry::SDK.configure do |c|
     "service.version" => ENV.fetch("APP_VERSION", "0.0.0")
   )
 
-  c.use_all  # Enable all installed instrumentation gems
+  # Preferred: use_all with per-instrumentation config overrides
+  c.use_all(
+    "OpenTelemetry::Instrumentation::PG" => { db_statement: :obfuscate },
+    "OpenTelemetry::Instrumentation::Redis" => { db_statement: :obfuscate }
+  )
 end
 ```
 
 ### Selective Instrumentation
 
-Instead of `c.use_all`, enable only specific instrumentations with configuration options:
+Instead of `c.use_all`, you can enable specific instrumentations. **However**, you must always include `ActionPack` — its Railtie inserts the `Rack::Events` middleware that produces HTTP server spans:
 
 ```ruby
 OpenTelemetry::SDK.configure do |c|
   c.service_name = ENV.fetch("OTEL_SERVICE_NAME", "my-service")
 
-  c.use "OpenTelemetry::Instrumentation::Rails"
+  # ActionPack MUST be included — its Railtie inserts Rack::Events for server spans
+  c.use "OpenTelemetry::Instrumentation::ActionPack"
   c.use "OpenTelemetry::Instrumentation::Rack"
+  c.use "OpenTelemetry::Instrumentation::Rails"
   c.use "OpenTelemetry::Instrumentation::Faraday"
   c.use "OpenTelemetry::Instrumentation::PG", {
     db_statement: :obfuscate  # :include, :obfuscate, or :omit
@@ -128,26 +134,22 @@ OpenTelemetry::SDK.configure do |c|
   c.use "OpenTelemetry::Instrumentation::ActiveRecord"
   c.use "OpenTelemetry::Instrumentation::ActiveJob"
   c.use "OpenTelemetry::Instrumentation::Net::HTTP"
-  c.use "OpenTelemetry::Instrumentation::Redis", {
-    db_statement: :obfuscate
-  }
 end
 ```
 
+> ⚠️ **Missing ActionPack = no server spans.** The `opentelemetry-instrumentation-action_pack` gem includes a Railtie that calls `app.middleware.insert_before(0, *Rack::Instrumentation.instance.middleware_args)` during `config.before_initialize`. Without it, `Rack::Events` is never added to the middleware stack and no HTTP server spans are produced. Using `use_all` avoids this pitfall entirely.
+
 ### API-Only Rails Applications
 
-For API-only apps (e.g., `config.api_only = true`), the same initializer works. The `rails` instrumentation adapts automatically. You may skip `action_view` if there are no templates:
+For API-only apps (e.g., `config.api_only = true`), the same initializer works. The `rails` instrumentation adapts automatically. Use `use_all` to ensure the ActionPack Railtie inserts `Rack::Events`:
 
 ```ruby
 OpenTelemetry::SDK.configure do |c|
   c.service_name = ENV.fetch("OTEL_SERVICE_NAME", "my-api")
 
-  c.use "OpenTelemetry::Instrumentation::Rails"
-  c.use "OpenTelemetry::Instrumentation::Rack"
-  c.use "OpenTelemetry::Instrumentation::ActionPack"
-  c.use "OpenTelemetry::Instrumentation::ActiveRecord"
-  c.use "OpenTelemetry::Instrumentation::PG"
-  c.use "OpenTelemetry::Instrumentation::Faraday"
+  c.use_all(
+    "OpenTelemetry::Instrumentation::PG" => { db_statement: :obfuscate }
+  )
 end
 ```
 
@@ -811,16 +813,17 @@ end
 
 ## Quick Start Checklist
 
-1. **Add gems** to `Gemfile` (`opentelemetry-sdk`, `opentelemetry-exporter-otlp`, instrumentation gems)
+1. **Add gems** to `Gemfile` (`opentelemetry-sdk`, `opentelemetry-exporter-otlp`, `opentelemetry-instrumentation-all`)
 2. **Run** `bundle install`
-3. **Create initializer** at `config/initializers/opentelemetry.rb`
+3. **Create initializer** at `config/initializers/opentelemetry.rb` using `c.use_all`
 4. **Set environment variables** (`OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`)
 5. **Add OTel Collector** to `docker-compose.yml`
 6. **Add a trace backend** (Jaeger, Tempo, or SaaS)
-7. **Start services** and verify traces appear in the backend
-8. **Add custom spans** to business-critical code paths
-9. **Add trace context** to logs for correlation
-10. **Configure sampling** for production traffic volume
+7. **Start services** and verify `Rack::Events` appears in `bin/rails middleware` output
+8. **Send traffic** and verify traces appear in the backend
+9. **Add custom spans** to business-critical code paths
+10. **Add trace context** to logs for correlation
+11. **Configure sampling** for production traffic volume
 
 ---
 
@@ -829,10 +832,12 @@ end
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
 | No traces appearing | Exporter endpoint wrong or collector down | Check `OTEL_EXPORTER_OTLP_ENDPOINT` and collector logs |
+| No HTTP server spans | ActionPack instrumentation not loaded | Use `opentelemetry-instrumentation-all` with `c.use_all`, or ensure `c.use "OpenTelemetry::Instrumentation::ActionPack"` is included — its Railtie inserts `Rack::Events` middleware |
+| `Rack::Events` missing from middleware | ActionPack Railtie did not run | Verify `opentelemetry-instrumentation-action_pack` gem is installed and the instrumentation is enabled; check `bin/rails middleware` output |
 | Traces not connected across services | Missing client or server instrumentation | Ensure both Faraday/Net::HTTP (client) and Rack (server) instrumentations are enabled |
 | `traceparent` header not injected | HTTP client instrumentation not loaded | Verify the Faraday or Net::HTTP instrumentation gem is installed and enabled |
 | Duplicate spans | Multiple instrumentations overlapping | Don't use both `pg` and `active_record` instrumentations unless needed |
-| Slow startup | Loading all instrumentations | Switch from `use_all` to selective `use` calls |
+| Slow startup | Loading all instrumentations | Switch from `use_all` to selective `use` calls (but always include ActionPack) |
 | Spans missing attributes | Attributes set after span ends | Set attributes inside the `in_span` block before it closes |
 | Console exporter shows nothing | Using `BatchSpanProcessor` with short-lived process | Use `SimpleSpanProcessor` for scripts and console exporter |
 

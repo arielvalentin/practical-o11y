@@ -69,8 +69,10 @@ end
 
 ## SDK Configuration
 
+- Use `opentelemetry-instrumentation-all` gem with `c.use_all` — this ensures the ActionPack Railtie is loaded, which auto-inserts `Rack::Events` middleware for server spans
+- Pass per-instrumentation config to `c.use_all` via a hash: `c.use_all("OpenTelemetry::Instrumentation::PG" => { db_statement: :obfuscate })`
+- When using selective `c.use` calls, always include `OpenTelemetry::Instrumentation::ActionPack` — its Railtie inserts the `Rack::Events` middleware required for HTTP server spans
 - Prefer environment variables (`OTEL_*`) over hardcoded configuration values
-- Use selective `c.use` calls in production instead of `c.use_all` to control startup time and reduce noise
 - Obfuscate database statements in production: `db_statement: :obfuscate`
 - Set `OTEL_SDK_DISABLED=true` in test environments
 
