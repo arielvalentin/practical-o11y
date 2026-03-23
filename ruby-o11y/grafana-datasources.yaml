@@ -5,3 +5,15 @@ datasources:
     access: proxy
     url: http://tempo:3200
     isDefault: true
+    jsonData:
+      httpMethod: GET
+      nodeGraph:
+        enabled: true
+      tracesToLogsV2:
+        datasourceUid: ''
+      search:
+        hide: false
+      traceQuery:
+        timeShiftEnabled: true
+        spanStartTimeShift: '-30m'
+        spanEndTimeShift: '30m'
