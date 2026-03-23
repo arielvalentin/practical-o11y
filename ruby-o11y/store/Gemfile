@@ -81,14 +81,7 @@ gem "faraday"
 # OpenTelemetry auto-instrumentation
 gem "opentelemetry-sdk", "~> 1.10"
 gem "opentelemetry-exporter-otlp", "~> 0.31"
-gem "opentelemetry-instrumentation-rails"
-gem "opentelemetry-instrumentation-rack"
-gem "opentelemetry-instrumentation-faraday"
-gem "opentelemetry-instrumentation-pg"
-gem "opentelemetry-instrumentation-active_record"
-gem "opentelemetry-instrumentation-active_job"
-gem "opentelemetry-instrumentation-active_support"
-gem "opentelemetry-instrumentation-net_http"
+gem "opentelemetry-instrumentation-all"
 
 group :development, :test do
   gem "spree_dev_tools"

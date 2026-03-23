@@ -17,23 +17,11 @@ OpenTelemetry::SDK.configure do |c|
     "service.version" => ENV.fetch("APP_VERSION", "0.1.0")
   )
 
-  c.use "OpenTelemetry::Instrumentation::Rack", use_rack_events: false
-  c.use "OpenTelemetry::Instrumentation::Rails"
-  c.use "OpenTelemetry::Instrumentation::Faraday"
-  c.use "OpenTelemetry::Instrumentation::PG", db_statement: :obfuscate
-  c.use "OpenTelemetry::Instrumentation::ActiveRecord"
-  c.use "OpenTelemetry::Instrumentation::ActiveJob"
-  c.use "OpenTelemetry::Instrumentation::ActiveSupport"
-  c.use "OpenTelemetry::Instrumentation::Net::HTTP"
+  c.use_all("OpenTelemetry::Instrumentation::PG" => { db_statement: :obfuscate })
 end
 
 module Store
   class Application < Rails::Application
-
-    config.middleware.insert_before(
-      0,
-      *OpenTelemetry::Instrumentation::Rack::Instrumentation.instance.middleware_args
-    )
 
     config.to_prepare do
       # Load application's model / class decorators
