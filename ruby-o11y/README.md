@@ -1,36 +1,47 @@
-# Practical Observability — Ruby on Rails Demo
+# Practical Observability — Ruby on Rails + OpenTelemetry Demo
 
-A multi-service ecommerce platform built with Ruby on Rails for demonstrating OpenTelemetry instrumentation.
+A multi-service ecommerce platform built with Ruby on Rails, instrumented with OpenTelemetry for distributed tracing.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Docker Compose                           │
-│                                                                 │
-│  ┌──────────────┐    HTTP     ┌──────────────────────┐         │
-│  │              │────────────▶│  Shipping Service    │         │
-│  │              │             │  :3001               │         │
-│  │              │             │  POST /api/v1/rates   │         │
-│  │              │             └──────────────────────┘         │
-│  │              │                                               │
-│  │    Spree     │    HTTP     ┌──────────────────────┐         │
-│  │    Store     │────────────▶│  Recommendation Svc  │         │
-│  │    :3000     │             │  :3002               │         │
-│  │              │             │  GET /api/v1/recs     │         │
-│  │              │             └──────────────────────┘         │
-│  │              │                                               │
-│  │              │    HTTP     ┌──────────────────────┐         │
-│  │              │────────────▶│  Notification Svc    │         │
-│  │              │             │  :3003               │         │
-│  │              │             │  POST /api/v1/notifs  │         │
-│  └──────┬───────┘             └──────────┬───────────┘         │
-│         │                                │                      │
-│         │         ┌──────────┐           │                      │
-│         └────────▶│PostgreSQL│◀──────────┘                      │
-│                   │  :5432   │                                   │
-│                   └──────────┘                                   │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           Docker Compose                                │
+│                                                                         │
+│  ┌──────────────┐    HTTP     ┌──────────────────────┐                 │
+│  │              │────────────▶│  Shipping Service    │                 │
+│  │              │             │  :3001               │                 │
+│  │              │             │  POST /api/v1/rates   │                 │
+│  │              │             └──────────┬───────────┘                 │
+│  │              │                        │                              │
+│  │    Spree     │    HTTP     ┌──────────────────────┐                 │
+│  │    Store     │────────────▶│  Recommendation Svc  │                 │
+│  │    :3000     │             │  :3002               │                 │
+│  │              │             │  GET /api/v1/recs     │                 │
+│  │              │             └──────────┬───────────┘                 │
+│  │              │                        │                              │
+│  │              │    HTTP     ┌──────────────────────┐                 │
+│  │              │────────────▶│  Notification Svc    │                 │
+│  │              │             │  :3003               │                 │
+│  │              │             │  POST /api/v1/notifs  │                 │
+│  └──────┬───────┘             └──────────┬───────────┘                 │
+│         │                                │                              │
+│     OTLP│    ┌──────────┐           OTLP│                              │
+│         │    │PostgreSQL│                │                              │
+│         │    │  :5432   │                │                              │
+│         │    └──────────┘                │                              │
+│         ▼                                ▼                              │
+│  ┌─────────────────────────────────────────┐                           │
+│  │          OTel Collector :4318           │                           │
+│  │          (OTLP HTTP receiver)           │                           │
+│  └──────────────────┬──────────────────────┘                           │
+│                     │ OTLP gRPC                                         │
+│                     ▼                                                   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐                         │
+│  │  Tempo   │  │Prometheus│  │   Grafana    │                         │
+│  │  :3200   │  │  :9090   │  │   :3100      │                         │
+│  └──────────┘  └──────────┘  └──────────────┘                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Services
@@ -42,6 +53,10 @@ A multi-service ecommerce platform built with Ruby on Rails for demonstrating Op
 | **Recommendations** | 3002 | Mock product recommendation engine |
 | **Notifications** | 3003 | Email/notification dispatcher with DB persistence |
 | **PostgreSQL** | 5432 | Shared database (separate DB per service) |
+| **OTel Collector** | 4318 | Receives OTLP telemetry from all services |
+| **Tempo** | 3200 | Distributed trace storage backend |
+| **Prometheus** | 9090 | Metrics (collector self-monitoring) |
+| **Grafana** | 3100 | Observability UI — traces, metrics |
 
 ## Communication Patterns
 
@@ -61,7 +76,7 @@ These patterns are designed to showcase different OpenTelemetry trace scenarios:
 ### Start Everything
 
 ```bash
-cd ruby
+cd ruby-o11y
 docker compose up --build
 ```
 
@@ -88,6 +103,10 @@ The shipping and recommendation services are stateless (no migrations needed).
 | http://localhost:3001/api/v1/health | Shipping service health |
 | http://localhost:3002/api/v1/health | Recommendation service health |
 | http://localhost:3003/api/v1/health | Notification service health |
+| http://localhost:3100 | Grafana UI (admin / admin) |
+| http://localhost:3200 | Tempo HTTP API |
+| http://localhost:9090 | Prometheus UI |
+| http://localhost:13133 | OTel Collector health check |
 
 ## API Examples
 
@@ -135,13 +154,13 @@ Install [k6](https://k6.io/) (`brew install k6`), then:
 
 ```bash
 # Run with live dashboard (http://localhost:5665)
-K6_WEB_DASHBOARD=true k6 run ruby/k6/load-test.js
+K6_WEB_DASHBOARD=true k6 run ruby-o11y/k6/load-test.js
 
 # Export a standalone HTML report you can open anytime
-K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=k6-report.html k6 run ruby/k6/load-test.js
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=k6-report.html k6 run ruby-o11y/k6/load-test.js
 
 # Keep the live dashboard open after the test finishes (Ctrl+C to stop)
-K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_OPEN=true k6 run --pause-after ruby/k6/load-test.js
+K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_OPEN=true k6 run --pause-after ruby-o11y/k6/load-test.js
 ```
 
 The test runs four scenarios in parallel for 2 minutes:
@@ -156,29 +175,91 @@ The test runs four scenarios in parallel for 2 minutes:
 ## Project Structure
 
 ```
-ruby/
-├── docker-compose.yml           # Orchestrates all services
+ruby-o11y/
+├── docker-compose.yml           # Orchestrates all services + observability stack
+├── otel-collector-config.yaml   # OTel Collector pipeline configuration
+├── tempo-config.yaml            # Grafana Tempo trace storage config
+├── grafana-datasources.yaml     # Grafana auto-provisioned datasources
+├── prometheus.yaml              # Prometheus scrape config
 ├── init-databases.sql           # Creates databases on first run
 ├── store/                       # Spree Commerce (Rails full-stack)
 │   ├── app/clients/             # HTTP clients for microservices
 │   ├── app/subscribers/         # Spree event subscribers
+│   ├── config/initializers/opentelemetry.rb  # OTel SDK setup
 │   └── ...
 ├── shipping-service/            # Rails API
 │   ├── app/services/            # ShippingRateCalculator
+│   ├── config/initializers/opentelemetry.rb  # OTel SDK setup
 │   └── ...
 ├── recommendation-service/      # Rails API
 │   ├── app/services/            # RecommendationEngine
+│   ├── config/initializers/opentelemetry.rb  # OTel SDK setup
 │   └── ...
 └── notification-service/        # Rails API
     ├── app/services/            # NotificationDispatcher
     ├── app/models/              # Notification (persisted)
+    ├── config/initializers/opentelemetry.rb  # OTel SDK setup
     └── ...
 ```
 
+## OpenTelemetry Instrumentation
+
+### What's Instrumented
+
+All services use auto-instrumentation with selective `c.use` calls:
+
+| Instrumentation | Store | Shipping | Recommendations | Notifications |
+|-----------------|-------|----------|-----------------|---------------|
+| Rails | ✅ | ✅ | ✅ | ✅ |
+| Rack | ✅ | ✅ | ✅ | ✅ |
+| PG | ✅ | ✅ | ✅ | ✅ |
+| ActiveRecord | ✅ | ✅ | ✅ | ✅ |
+| Faraday | ✅ | — | — | — |
+| Net::HTTP | ✅ | — | — | — |
+| ActiveJob | ✅ | — | — | — |
+| ActiveSupport | ✅ | — | — | — |
+
+### Context Propagation
+
+Distributed tracing works automatically:
+
+1. **Store** makes an HTTP request via Faraday to a downstream service
+2. Faraday instrumentation **injects** `traceparent` header into the request
+3. Downstream service's Rack instrumentation **extracts** `traceparent` and creates a child span
+4. The trace is connected across both services with the same `trace_id`
+
+### Viewing Traces
+
+1. Start all services: `docker compose up --build`
+2. Generate traffic (browse the store, run k6 load tests, or call APIs directly)
+3. Open **Grafana** at [http://localhost:3100](http://localhost:3100)
+4. Navigate to **Explore** → select **Tempo** datasource
+5. Search for traces by service name, duration, or status
+
+### Environment Variables
+
+Each service is configured with these OTel environment variables in `docker-compose.yml`:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OTEL_SERVICE_NAME` | Unique service identifier | `store`, `shipping-service` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Collector endpoint | `http://otel-collector:4318` |
+| `OTEL_RESOURCE_ATTRIBUTES` | Resource metadata | `deployment.environment=production` |
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| No traces in Grafana | Check collector logs: `docker compose logs otel-collector` |
+| Traces not connected across services | Verify Faraday instrumentation is enabled in the calling service |
+| Collector unhealthy | Check `http://localhost:13133/` and collector config syntax |
+| Health check spans cluttering traces | Already filtered in `otel-collector-config.yaml` |
+
 ## Next Steps
 
-- [ ] Add OpenTelemetry Ruby instrumentation to all services
-- [ ] Add OTel Collector container to Docker Compose
-- [ ] Add Jaeger or Grafana Tempo for trace visualization
-- [ ] Configure trace propagation across HTTP boundaries
-- [ ] Add custom spans for business logic
+- [ ] Add custom spans for business logic (shipping rate calculation, recommendation engine, notification dispatch)
+- [ ] Add metrics signal (request rates, error rates, latency histograms)
+- [ ] Add logs signal with trace correlation (Lograge + trace_id/span_id)
+- [ ] Add Grafana Loki for centralized log aggregation
+- [ ] Configure sampling for high-traffic production scenarios
+- [ ] Add Grafana dashboards for service overview and RED metrics

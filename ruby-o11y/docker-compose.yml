@@ -15,6 +15,67 @@ services:
       timeout: 5s
       retries: 5
 
+  # --- Observability Stack ---
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus metrics
+      - "13133:13133" # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      tempo:
+        condition: service_started
+
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./tempo-config.yaml:/etc/tempo/config.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+
+  prometheus:
+    image: prom/prometheus:latest
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      otel-collector:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3100:3000"   # Grafana UI (3100 to avoid conflict with Store on 3000)
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      tempo:
+        condition: service_started
+      prometheus:
+        condition: service_started
+
+  # --- Application Services ---
+
   store:
     build:
       context: ./store
@@ -33,8 +94,13 @@ services:
       SHIPPING_SERVICE_URL: http://shipping:3001
       RECOMMENDATION_SERVICE_URL: http://recommendations:3002
       NOTIFICATION_SERVICE_URL: http://notifications:3003
+      OTEL_SERVICE_NAME: store
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=practical-o11y"
     depends_on:
       postgres:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     volumes:
       - ./store:/app
@@ -53,8 +119,13 @@ services:
       DATABASE_HOST: postgres
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
+      OTEL_SERVICE_NAME: shipping-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=practical-o11y"
     depends_on:
       postgres:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     volumes:
       - ./shipping-service:/app
@@ -73,8 +144,13 @@ services:
       DATABASE_HOST: postgres
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
+      OTEL_SERVICE_NAME: recommendation-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=practical-o11y"
     depends_on:
       postgres:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     volumes:
       - ./recommendation-service:/app
@@ -93,8 +169,13 @@ services:
       DATABASE_HOST: postgres
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: postgres
+      OTEL_SERVICE_NAME: notification-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=practical-o11y"
     depends_on:
       postgres:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     volumes:
       - ./notification-service:/app
@@ -106,3 +187,6 @@ volumes:
   shipping_bundle:
   recommendations_bundle:
   notifications_bundle:
+  tempo_data:
+  prometheus_data:
+  grafana_data:
