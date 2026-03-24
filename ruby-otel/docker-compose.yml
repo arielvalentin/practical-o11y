@@ -29,10 +29,12 @@ services:
 
   jaeger:
     image: jaegertracing/jaeger:latest
+    command: ["--config", "/etc/jaeger/config.yaml"]
+    volumes:
+      - ./jaeger-config.yaml:/etc/jaeger/config.yaml:ro
     ports:
       - "16686:16686"
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
+      - "16687:16687"
     deploy:
       resources:
         limits:
